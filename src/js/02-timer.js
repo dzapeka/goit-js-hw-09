@@ -8,7 +8,9 @@ const hoursSpan = document.querySelector('span[data-hours]');
 const minutesSpan = document.querySelector('span[data-minutes]');
 const secondsSpan = document.querySelector('span[data-seconds]');
 
-const DEFAULT_TIMER_INTERVAL = 1000;
+const TIMER_DEFAULT_INTERVAL = 1000;
+const TIMER_FAILURE_MSG = 'Please choose a date in the future';
+const TIMER_SUCCESS_MSG = "It's Time to Stop!!!";
 
 let timerId = null;
 let selectedDate = null;
@@ -22,10 +24,9 @@ const options = {
   minuteIncrement: 1,
   onClose(selectedDates) {
     selectedDate = selectedDates[0];
-    const currentDate = new Date();
 
-    if (selectedDate <= currentDate) {
-      Notify.failure('Please choose a date in the future');
+    if (!isDateInFuture(selectedDate)) {
+      Notify.failure(TIMER_FAILURE_MSG);
       return;
     }
     startBtn.disabled = false;
@@ -38,20 +39,22 @@ startBtn.addEventListener('click', startTimerHandler);
 
 function startTimerHandler() {
   startBtn.disabled = true;
-  updateRemainingTime(selectedDate);
-  timerId = setInterval(
-    updateRemainingTime,
-    DEFAULT_TIMER_INTERVAL,
-    selectedDate
-  );
+
+  // Display remaining time before starting a new timer.
+  // Useful for cases with large intervals.
+  updateRemainingTime();
+
+  timerId = setInterval(updateRemainingTime, TIMER_DEFAULT_INTERVAL);
 }
 
-function updateRemainingTime(selctedDate) {
-  let remainingTime = selctedDate - new Date();
+function updateRemainingTime() {
+  let remainingTime = getRemainingTime(selectedDate);
+
   if (remainingTime <= 0) {
-    clearInterval(timerId);
-    remainingTime = 0;
+    handleTimerExpiration();
+    return;
   }
+
   const { days, hours, minutes, seconds } = convertMs(remainingTime);
 
   daysSpan.textContent = addLeadingZero(days);
@@ -60,8 +63,29 @@ function updateRemainingTime(selctedDate) {
   secondsSpan.textContent = addLeadingZero(seconds);
 }
 
+function handleTimerExpiration() {
+  // If the timer started with a delay and the selected date is already in the past.
+  if (!timerId) {
+    Notify.failure(TIMER_FAILURE_MSG);
+    return;
+  }
+
+  clearInterval(timerId);
+  Notify.success(TIMER_SUCCESS_MSG);
+}
+
+function getRemainingTime(selectedDate) {
+  const currentDate = new Date();
+  return selectedDate - currentDate;
+}
+
 function addLeadingZero(value) {
   return `${value}`.padStart(2, '0');
+}
+
+function isDateInFuture(selectedDate) {
+  const currentDate = new Date();
+  return selectedDate > currentDate;
 }
 
 function convertMs(ms) {
